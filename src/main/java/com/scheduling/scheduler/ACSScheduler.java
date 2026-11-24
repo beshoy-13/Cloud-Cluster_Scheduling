@@ -2,6 +2,7 @@ package com.scheduling.scheduler;
 
 import com.scheduling.metrics.Metrics;
 import com.scheduling.model.Process;
+import com.scheduling.model.TickSnapshot;
 import com.scheduling.report.Report;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -23,6 +24,9 @@ public class ACSScheduler implements Scheduler {
     private final int quantum;
     private final int contextSwitchTime;
     private final int agingInterval;
+    private List<String> timeline = new ArrayList<>();
+    private final List<TickSnapshot> snapshots = new ArrayList<>();
+    private Metrics metrics;
 
     public ACSScheduler(
             List<Process> processes,
@@ -55,7 +59,20 @@ public class ACSScheduler implements Scheduler {
     }
 
     @Override
+    public List<TickSnapshot> getTimeline() {
+        return snapshots;
+    }
+
+    @Override
     public void run() {
+        simulate();
+        new Report(metrics, getName(), timeline).print();
+    }
+
+    @Override
+    public void simulate() {
+        timeline = new ArrayList<>();
+        snapshots.clear();
         int currentTime = 0;
         int contextSwitchRemaining = 0;
         int quantumRemaining = 0;
@@ -63,14 +80,12 @@ public class ACSScheduler implements Scheduler {
         boolean runningTier2 = false;
         Deque<Process> tier1Queue = new ArrayDeque<>();
         List<Process> tier2Queue = new ArrayList<>();
-        List<String> timeline = new ArrayList<>();
 
         while (!allFinished()) {
             addArrivals(currentTime, tier1Queue);
 
             if (contextSwitchRemaining > 0) {
-                timeline.add(formatTimelineEntry(
-                        currentTime, "CONTEXT SWITCH", "-", tier1Queue, tier2Queue));
+                log(currentTime, "CONTEXT SWITCH", -1, tier1Queue, tier2Queue);
                 contextSwitchRemaining--;
                 currentTime++;
                 continue;
@@ -79,8 +94,7 @@ public class ACSScheduler implements Scheduler {
             if (running == null) {
                 running = selectNext(tier1Queue, tier2Queue, currentTime);
                 if (running == null) {
-                    timeline.add(formatTimelineEntry(
-                            currentTime, "IDLE", "-", tier1Queue, tier2Queue));
+                    log(currentTime, "IDLE", -1, tier1Queue, tier2Queue);
                     currentTime++;
                     continue;
                 }
@@ -89,12 +103,7 @@ public class ACSScheduler implements Scheduler {
                 quantumRemaining = quantum;
             }
 
-            timeline.add(formatTimelineEntry(
-                    currentTime,
-                    running.getId(),
-                    Integer.toString(running.getRemainingTime()),
-                    tier1Queue,
-                    tier2Queue));
+            log(currentTime, running.getId(), running.getRemainingTime(), tier1Queue, tier2Queue);
             running.markStarted(currentTime);
             running.tick();
             currentTime++;
@@ -130,9 +139,28 @@ public class ACSScheduler implements Scheduler {
             }
         }
 
-        Metrics metrics = new Metrics(processes);
+        metrics = new Metrics(processes);
         metrics.calculate();
-        new Report(metrics, getName(), timeline).print();
+    }
+
+    private void log(
+            int time,
+            String label,
+            int remaining,
+            Deque<Process> tier1Queue,
+            List<Process> tier2Queue) {
+        timeline.add(formatTimelineEntry(
+                time, label, remaining < 0 ? "-" : Integer.toString(remaining), tier1Queue, tier2Queue));
+        snapshots.add(new TickSnapshot(
+                time, label, remaining, describe(tier1Queue), describe(tier2Queue)));
+    }
+
+    private List<String> describe(Iterable<Process> queue) {
+        List<String> result = new ArrayList<>();
+        for (Process process : queue) {
+            result.add(process.toString());
+        }
+        return result;
     }
 
     private void addArrivals(int currentTime, Deque<Process> tier1Queue) {

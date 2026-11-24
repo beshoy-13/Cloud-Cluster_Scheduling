@@ -2,6 +2,7 @@ package com.scheduling.scheduler;
 
 import com.scheduling.metrics.Metrics;
 import com.scheduling.model.Process;
+import com.scheduling.model.TickSnapshot;
 import com.scheduling.report.Report;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +41,10 @@ public class SJFScheduler implements Scheduler {
     // How many ticks a context switch costs
     private int contextSwitchTime;
 
+    private List<String> timeline = new ArrayList<>();
+    private final List<TickSnapshot> snapshots = new ArrayList<>();
+    private Metrics metrics;
+
     public SJFScheduler(List<Process> processes, int contextSwitchTime) {
         this.processes         = processes;
         this.contextSwitchTime = contextSwitchTime;
@@ -73,19 +78,31 @@ public class SJFScheduler implements Scheduler {
      * ----------------------------------------------------------
      */
     @Override
+    public List<TickSnapshot> getTimeline() {
+        return snapshots;
+    }
+
+    @Override
     public void run() {
+        simulate();
+        new Report(metrics, getName(), timeline).print();
+    }
+
+    @Override
+    public void simulate() {
 
         int currentTime = 0;    // the simulation clock
         int csRemaining = 0;    // ticks left in the current context switch
         Process running = null; // process currently on the CPU (null = idle)
-        List<String> timeline = new ArrayList<>();
+        timeline = new ArrayList<>();
+        snapshots.clear();
 
         while (!allFinished()) {
 
             // A switch is an indivisible overhead interval. Choose the next
             // process after it finishes so arrivals during the switch count.
             if (csRemaining > 0) {
-                timeline.add(formatTimelineEntry(currentTime, "CONTEXT SWITCH", "-"));
+                log(currentTime, "CONTEXT SWITCH", -1, null);
                 csRemaining--;
                 currentTime++;
                 continue;
@@ -95,7 +112,7 @@ public class SJFScheduler implements Scheduler {
             Process candidate = getShortestJob(readyQueue);
 
             if (candidate == null) {
-                timeline.add(formatTimelineEntry(currentTime, "IDLE", "-"));
+                log(currentTime, "IDLE", -1, null);
                 currentTime++;
                 continue;
             }
@@ -104,7 +121,7 @@ public class SJFScheduler implements Scheduler {
             // preempted, matching the existing SJF test-case convention.
             if (running != null && running != candidate) {
                 if (contextSwitchTime > 0) {
-                    timeline.add(formatTimelineEntry(currentTime, "CONTEXT SWITCH", "-"));
+                    log(currentTime, "CONTEXT SWITCH", -1, null);
                     csRemaining = contextSwitchTime - 1;
                     running = null;
                     currentTime++;
@@ -112,8 +129,7 @@ public class SJFScheduler implements Scheduler {
                 }
             }
 
-            timeline.add(formatTimelineEntry(
-                    currentTime, candidate.getId(), Integer.toString(candidate.getRemainingTime())));
+            log(currentTime, candidate.getId(), candidate.getRemainingTime(), candidate);
             candidate.markStarted(currentTime); // records firstRunTime on first call
             candidate.tick();                   // remainingTime--
             running = candidate;
@@ -126,11 +142,20 @@ public class SJFScheduler implements Scheduler {
             currentTime++;
         }
 
-        Metrics metrics = new Metrics(processes);
+        metrics = new Metrics(processes);
         metrics.calculate();
+    }
 
-        Report report = new Report(metrics, getName(), timeline);
-        report.print();
+    private void log(int time, String label, int remaining, Process onCpu) {
+        timeline.add(formatTimelineEntry(
+                time, label, remaining < 0 ? "-" : Integer.toString(remaining)));
+        List<String> waiting = new ArrayList<>();
+        for (Process p : getReadyProcesses(time)) {
+            if (p != onCpu) {
+                waiting.add(p.toString());
+            }
+        }
+        snapshots.add(new TickSnapshot(time, label, remaining, waiting, new ArrayList<>()));
     }
 
     private String formatTimelineEntry(int time, String process, String remainingTime) {

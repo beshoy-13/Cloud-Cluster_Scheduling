@@ -1,6 +1,7 @@
 package com.scheduling.scheduler;
 
 import com.scheduling.model.Process;
+import com.scheduling.model.TickSnapshot;
 import java.util.List;
 
 /*
@@ -40,6 +41,10 @@ public interface Scheduler {
      * Internally computes metrics and prints the report.
      */
     void run();
+
+    void simulate();
+
+    List<TickSnapshot> getTimeline();
 
     /*
      * getProcesses()
