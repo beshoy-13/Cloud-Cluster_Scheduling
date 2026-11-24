@@ -33,8 +33,14 @@ public class Report {
 
         if (timeline != null) {
             System.out.println("\n--- Execution Timeline ---");
-            System.out.printf("%-10s %-20s %-15s%n", "Time", "CPU", "Remaining");
-            System.out.println(buildSeparator(45));
+            if (schedulerName.contains("Adaptive Container")) {
+                System.out.printf("%-6s %-18s %-10s %-55s %-55s%n",
+                        "Time", "Process", "Remaining", "Tier 1", "Tier 2");
+                System.out.println(buildSeparator(150));
+            } else {
+                System.out.printf("%-10s %-20s %-15s%n", "Time", "CPU", "Remaining");
+                System.out.println(buildSeparator(45));
+            }
             for (String entry : timeline) {
                 System.out.println(entry);
             }

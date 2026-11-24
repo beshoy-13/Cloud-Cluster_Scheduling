@@ -1,6 +1,7 @@
 package com.scheduling.simulation;
 
 import com.scheduling.model.Process;
+import com.scheduling.scheduler.ACSScheduler;
 import com.scheduling.scheduler.Scheduler;
 import com.scheduling.scheduler.SJFScheduler;
 import java.util.Arrays;
@@ -24,6 +25,7 @@ public class Main {
         runTestCase1();
         runTestCase2();
         runTestCase3();
+        runACSAssignmentCases();
     }
 
     // -----------------------------------------------------------------------
@@ -99,5 +101,23 @@ public class Main {
 
         Scheduler scheduler = new SJFScheduler(processes, 0);
         scheduler.run();
+    }
+
+    private static void runACSAssignmentCases() {
+        System.out.println("\n--- ACS Assignment Test Case 1 (Q=3, CS=0) ---");
+        List<Process> firstCase = Arrays.asList(
+                new Process("P1", 0, 4, 2),
+                new Process("P2", 1, 7, 3),
+                new Process("P3", 3, 2, 1)
+        );
+        new ACSScheduler(firstCase, 3, 0, 4).run();
+
+        System.out.println("\n--- ACS Assignment Test Case 2 (Q=3, CS=1) ---");
+        List<Process> secondCase = Arrays.asList(
+                new Process("P1", 0, 5, 4),
+                new Process("P2", 1, 6, 2),
+                new Process("P3", 4, 4, 3)
+        );
+        new ACSScheduler(secondCase, 3, 1, 4).run();
     }
 }

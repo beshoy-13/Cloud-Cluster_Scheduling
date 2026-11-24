@@ -10,6 +10,8 @@ public class Process {
 
     private int remainingTime;
     private int currentPriority;
+    private int tier;
+    private int tier2EntryTime;
 
     private int firstRunTime;
     private int finishTime;
@@ -24,6 +26,8 @@ public class Process {
         this.initialPriority = initialPriority;
         this.remainingTime   = burstTime;
         this.currentPriority = initialPriority;
+        this.tier            = 1;
+        this.tier2EntryTime  = -1;
         this.firstRunTime    = -1;
         this.finishTime      = -1;
         this.hasStarted      = false;
@@ -68,6 +72,10 @@ public class Process {
     public void setRemainingTime(int remainingTime)     { this.remainingTime = remainingTime; }
     public int getCurrentPriority()                     { return currentPriority; }
     public void setCurrentPriority(int currentPriority) { this.currentPriority = currentPriority; }
+    public int getTier()                                { return tier; }
+    public void setTier(int tier)                       { this.tier = tier; }
+    public int getTier2EntryTime()                      { return tier2EntryTime; }
+    public void setTier2EntryTime(int tier2EntryTime)   { this.tier2EntryTime = tier2EntryTime; }
     public int getFirstRunTime()                        { return firstRunTime; }
     public int getFinishTime()                          { return finishTime; }
     public boolean isFinished()                         { return isFinished; }

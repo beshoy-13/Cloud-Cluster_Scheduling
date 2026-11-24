@@ -55,7 +55,7 @@ mvn clean compile
 java -cp target/classes com.scheduling.simulation.Main
 ```
 
-Alternatively, open `src/main/java/com/scheduling/simulation/Main.java` in VS Code and select **Run** above the `main` method. The program currently runs three preemptive SJF examples and prints a tick-by-tick timeline and per-process/average metrics.
+Alternatively, open `src/main/java/com/scheduling/simulation/Main.java` in VS Code and select **Run** above the `main` method. The program runs three preemptive SJF examples and the two ACS assignment examples, printing tick-by-tick timelines and per-process/average metrics.
 
 ## Run the tests
 
@@ -90,18 +90,18 @@ java -cp $build com.scheduling.simulation.Main
 - **Context-switch overhead on preemption**: the existing SJF convention charges the configured context-switch ticks when an unfinished running process is preempted. The scheduler chooses the shortest ready process again after the switch, including arrivals during that interval.
 - **Execution timeline**: one entry per simulated tick, showing the running process and its remaining burst, or an idle/context-switch tick.
 - **Metrics and report**: per-process finish, turnaround, waiting, and response times, plus average turnaround, waiting, and response times.
-- **Example cases and tests**: `Main` runs three SJF examples; `SJFSchedulerTest` has six focused JUnit tests covering the metrics, idle CPU, context switching, and re-selection after a switch.
+- **Example cases and tests**: `Main` runs three SJF examples and two ACS examples; the test suite covers SJF behavior plus ACS quantum demotion, non-preemptive Tier 2 execution, and aging.
 
 The SJF examples are not the assignment's ACS test-case output. The detailed queue/matrix examples in the PDF describe ACS.
 
-## Work still required by the assignment
+## ACS implementation
 
-The current implementation is **SJF only**. The assignment also requires the Adaptive Container Scheduler (ACS); it is not implemented yet.
+The project implements the Adaptive Container Scheduler in `ACSScheduler`.
 
-1. **Implement ACS Tier 1 (Round Robin).** Add an ACS scheduler implementing `Scheduler`. New processes start in the Tier 1 ready queue, are dispatched using a configurable time quantum, and unfinished processes retain their remaining burst when they return to the queue.
-2. **Implement ACS Tier 2 (priority, non-preemptive).** When a Tier 1 process uses its full quantum without completing, demote it to Tier 2. Once a Tier 2 process starts running, let it finish before selecting another process.
-3. **Implement Tier 3 aging.** Increase the effective priority of processes waiting in Tier 2 according to the policy agreed by the team. Define whether a larger or smaller number means higher priority and how often aging occurs; apply that definition consistently and document it.
-4. **Print the required heuristic demotion matrix for every time step.** Include the current time, running process (or idle/context switch), and the contents/state of each ACS tier so demotions and aging can be followed.
+1. **Tier 1 (Round Robin):** New processes enter the FIFO Tier 1 queue. A process that consumes its complete quantum without finishing is demoted to Tier 2.
+2. **Tier 2 (priority, non-preemptive):** Tier 2 selects the smallest effective priority value. Once a Tier 2 process starts, it runs until completion.
+3. **Aging:** Processes waiting in Tier 2 age every 4 ticks. Their effective priority is `initialPriority - floor(waitingTimeInTier2 / 4)`, so smaller values have higher priority.
+4. **ACS timeline:** The report prints the running process, remaining burst, and the Tier 1 and Tier 2 queue states for every simulated tick.
 5. **Use the assignment test cases.** The PDF gives these ACS inputs:
 
    | Case | Process inputs `(ID, arrival, burst, initial priority)` | Quantum | CS |
