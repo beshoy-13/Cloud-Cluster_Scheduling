@@ -1,0 +1,151 @@
+# Cloud-Cluster CPU Scheduling
+
+A Java simulation project for the CS241 Operating Systems scheduling assignment. The assignment specification is in [CS241-Assignment2-Scheduling.pdf](CS241-Assignment2-Scheduling.pdf).
+
+## Project structure
+
+```text
+Cloud-Cluster_Scheduling/
+├── CS241-Assignment2-Scheduling.pdf
+├── CS241-Assignment2-Scheduling-Analysis-Report.pdf
+├── pom.xml
+├── lib/
+│   ├── junit-4.13.2.jar
+│   └── hamcrest-core-1.3.jar
+└── src/
+    ├── main/
+    │   ├── java/com/scheduling/
+    │   │   ├── gui/                 # Swing GUI (bonus): App, MainFrame, panels, SimulationRunner
+    │   │   ├── metrics/Metrics.java # Calculates average scheduling metrics
+    │   │   ├── model/               # Process data and per-tick snapshots
+    │   │   ├── report/Report.java   # Prints the execution timeline and results
+    │   │   ├── scheduler/
+    │   │   │   ├── Scheduler.java   # Shared scheduler interface
+    │   │   │   ├── SJFScheduler.java# Preemptive SJF (SRTF) implementation
+    │   │   │   └── ACSScheduler.java# Adaptive Container Scheduler (Tiers 1-3)
+    │   │   └── simulation/Main.java # Runs SJF examples and the two ACS PDF cases
+    │   └── resources/testcases/     # Reserved for test-case input files
+    └── test/
+        ├── java/com/scheduling/SJFSchedulerTest.java
+        ├── java/com/scheduling/ACSSchedulerTest.java
+        └── resources/               # Reserved for test resources
+```
+
+`target/` and `out/` are generated compiler output; do not edit their `.class` files. They can be removed and regenerated.
+
+## Software to install
+
+- **JDK 25**: the Maven compiler release in `pom.xml` is set to 25. Install a JDK (not only a JRE) and configure VS Code to use it.
+- **Apache Maven 3.9 or newer**: used to compile and run the test suite. Maven downloads the declared JUnit dependency when needed. The JUnit and Hamcrest jars under `lib/` are also included for manual local testing.
+- **Visual Studio Code** (optional) with **Extension Pack for Java** and **Maven for Java** for editor run/test buttons and Maven project support.
+
+Check the installation in a terminal:
+
+```powershell
+java -version
+javac -version
+mvn -version
+```
+
+All three commands should report the intended JDK/Maven installation. In VS Code, open the `Cloud-Cluster_Scheduling` folder itself. If prompted that the Java project configuration is out of date, run **Java: Update Project Configuration** from the Command Palette, then reload the Java project. Use **Java: Configure Java Runtime** to select JDK 25 for this project.
+
+## Run the application
+
+From a terminal opened in the `Cloud-Cluster_Scheduling` directory:
+
+```powershell
+mvn clean compile
+java -cp target/classes com.scheduling.simulation.Main
+```
+
+Alternatively, open `src/main/java/com/scheduling/simulation/Main.java` in VS Code and select **Run** above the `main` method. The program runs three preemptive SJF examples and the two ACS assignment examples, printing tick-by-tick timelines and per-process/average metrics.
+
+### GUI (bonus)
+
+```powershell
+java -cp target/classes com.scheduling.gui.App
+```
+
+The Swing window lets you edit the test case, quantum, context-switch time and aging interval, then shows the Gantt chart, the per-tick demotion matrix, per-process metrics and CPU utilization. It also provides run/step/play controls, a CS/Q sweep view, and PNG export.
+
+## Run the tests
+
+From the project directory:
+
+```powershell
+mvn test
+```
+
+To run only the SJF test class:
+
+```powershell
+mvn -Dtest=SJFSchedulerTest test
+```
+
+In VS Code, open `src/test/java/com/scheduling/SJFSchedulerTest.java` and select **Run Test** above the class (or use **Testing: Run All Tests**). A test class is run by the JUnit test runner; it is not a second application `main` method.
+
+If Maven is not installed yet, the bundled jars can be used to compile and test manually in PowerShell:
+
+```powershell
+$build = ".\target\manual-run"
+New-Item -ItemType Directory -Force $build | Out-Null
+$sources = Get-ChildItem .\src -Recurse -Filter *.java | ForEach-Object { $_.FullName }
+javac -encoding UTF-8 -cp ".\lib\junit-4.13.2.jar;.\lib\hamcrest-core-1.3.jar" -d $build $sources
+java -cp "$build;.\lib\junit-4.13.2.jar;.\lib\hamcrest-core-1.3.jar" org.junit.runner.JUnitCore com.scheduling.SJFSchedulerTest
+java -cp "$build;.\lib\junit-4.13.2.jar;.\lib\hamcrest-core-1.3.jar" org.junit.runner.JUnitCore com.scheduling.ACSSchedulerTest
+java -cp $build com.scheduling.simulation.Main
+java -cp $build com.scheduling.gui.App
+```
+
+## What is implemented
+
+- **Preemptive SJF / SRTF**: at each tick, the ready process with the shortest remaining CPU burst runs. Ties prefer the earlier arrival.
+- **Context-switch overhead on preemption**: the existing SJF convention charges the configured context-switch ticks when an unfinished running process is preempted. The scheduler chooses the shortest ready process again after the switch, including arrivals during that interval.
+- **Execution timeline**: one entry per simulated tick, showing the running process and its remaining burst, or an idle/context-switch tick.
+- **Metrics and report**: per-process finish, turnaround, waiting, and response times, plus average turnaround, waiting, and response times.
+- **Example cases and tests**: `Main` runs three SJF examples and two ACS examples. The 11 JUnit tests cover SJF behavior, ACS quantum demotion, non-preemptive Tier 2 execution, aging, and exact per-process metrics for both PDF test cases.
+
+`Main` prints the two ACS test cases from the PDF; the SJF examples are separate inputs that exercise the SRTF rule.
+
+## ACS implementation
+
+The project implements the Adaptive Container Scheduler in `ACSScheduler`.
+
+1. **Tier 1 (Round Robin):** New processes enter the FIFO Tier 1 queue. A process that consumes its complete quantum without finishing is demoted to Tier 2.
+2. **Tier 2 (priority, non-preemptive):** Tier 2 selects the smallest effective priority value. Once a Tier 2 process starts, it runs until completion.
+3. **Aging:** Processes waiting in Tier 2 age every 4 ticks. Their effective priority is `initialPriority - floor(waitingTimeInTier2 / 4)`, so smaller values have higher priority.
+4. **ACS timeline:** The report prints the running process, remaining burst, and the Tier 1 and Tier 2 queue states for every simulated tick.
+5. **Use the assignment test cases.** The PDF gives these ACS inputs:
+
+   | Case | Process inputs `(ID, arrival, burst, initial priority)` | Quantum | CS |
+   | --- | --- | ---: | ---: |
+   | 1 | `(P1, 0, 4, 2)`, `(P2, 1, 7, 3)`, `(P3, 3, 2, 1)` | 3 | 0 |
+   | 2 | `(P1, 0, 5, 4)`, `(P2, 1, 6, 2)`, `(P3, 4, 4, 3)` | 3 | 1 |
+
+   Test the ACS behavior against the expected states/results in the PDF. Keep the existing SJF tests as separate SJF tests.
+6. **Compare settings and write the analysis.** Generate results for multiple context-switch and quantum values; compare average waiting and turnaround time, graph their relationship to CS and Q, and discuss Tier 2 demotion's CPU-utilization/response-time trade-off.
+7. **Optional bonus:** build a GUI after the required schedulers and reports work.
+
+Before implementing ACS, agree as a team on queue order, priority direction, aging interval/increment, and whether context-switch overhead applies to each scheduler transition. These choices affect the expected timeline and metrics.
+
+## Suggested team workflow
+
+The assignment requires a team of four or five students from the same lab group/TA. Suggested division of work:
+
+- One teammate owns ACS Tier 1 and its tests.
+- One owns Tier 2 demotion and non-preemptive dispatch.
+- One owns aging and matrix/timeline reporting.
+- One owns test-case validation, CS/Q comparisons, graphs, and report analysis.
+- If there is a fifth teammate, they can integrate the schedulers, review edge cases, and/or build the optional GUI.
+
+Agree on interfaces and policy decisions before splitting work. Work on separate Git branches, commit small changes, and integrate/test together. Keep shared changes to `Process`, `Scheduler`, and `Report` coordinated to avoid merge conflicts.
+
+## Submission reminders
+
+The PDF says one team member submits the final source-code package as **one ZIP**. Its requested naming pattern is:
+
+```text
+A2_TAname_Group_ID1_ID2_ID3_ID4
+```
+
+Check the PDF for the full team/submission rules and deadline. Include source, `pom.xml`, tests, and the required report; do not rely on compiled `target/` or `out/` files as a substitute for source.
