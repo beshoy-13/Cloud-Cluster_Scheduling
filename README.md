@@ -7,6 +7,7 @@ A Java simulation project for the CS241 Operating Systems scheduling assignment.
 ```text
 Cloud-Cluster_Scheduling/
 ├── CS241-Assignment2-Scheduling.pdf
+├── CS241-Assignment2-Scheduling-Analysis-Report.pdf
 ├── pom.xml
 ├── lib/
 │   ├── junit-4.13.2.jar
@@ -14,17 +15,19 @@ Cloud-Cluster_Scheduling/
 └── src/
     ├── main/
     │   ├── java/com/scheduling/
-    │   │   ├── gui/                 # Reserved for the optional GUI
+    │   │   ├── gui/                 # Swing GUI (bonus): App, MainFrame, panels, SimulationRunner
     │   │   ├── metrics/Metrics.java # Calculates average scheduling metrics
-    │   │   ├── model/Process.java   # Process data and per-process metrics
+    │   │   ├── model/               # Process data and per-tick snapshots
     │   │   ├── report/Report.java   # Prints the execution timeline and results
     │   │   ├── scheduler/
     │   │   │   ├── Scheduler.java   # Shared scheduler interface
-    │   │   │   └── SJFScheduler.java# Preemptive SJF (SRTF) implementation
-    │   │   └── simulation/Main.java # Runs the three sample SJF cases
+    │   │   │   ├── SJFScheduler.java# Preemptive SJF (SRTF) implementation
+    │   │   │   └── ACSScheduler.java# Adaptive Container Scheduler (Tiers 1-3)
+    │   │   └── simulation/Main.java # Runs SJF examples and the two ACS PDF cases
     │   └── resources/testcases/     # Reserved for test-case input files
     └── test/
         ├── java/com/scheduling/SJFSchedulerTest.java
+        ├── java/com/scheduling/ACSSchedulerTest.java
         └── resources/               # Reserved for test resources
 ```
 
@@ -57,6 +60,14 @@ java -cp target/classes com.scheduling.simulation.Main
 
 Alternatively, open `src/main/java/com/scheduling/simulation/Main.java` in VS Code and select **Run** above the `main` method. The program runs three preemptive SJF examples and the two ACS assignment examples, printing tick-by-tick timelines and per-process/average metrics.
 
+### GUI (bonus)
+
+```powershell
+java -cp target/classes com.scheduling.gui.App
+```
+
+The Swing window lets you edit the test case, quantum, context-switch time and aging interval, then shows the Gantt chart, the per-tick demotion matrix, per-process metrics and CPU utilization. It also provides run/step/play controls, a CS/Q sweep view, and PNG export.
+
 ## Run the tests
 
 From the project directory:
@@ -81,7 +92,9 @@ New-Item -ItemType Directory -Force $build | Out-Null
 $sources = Get-ChildItem .\src -Recurse -Filter *.java | ForEach-Object { $_.FullName }
 javac -encoding UTF-8 -cp ".\lib\junit-4.13.2.jar;.\lib\hamcrest-core-1.3.jar" -d $build $sources
 java -cp "$build;.\lib\junit-4.13.2.jar;.\lib\hamcrest-core-1.3.jar" org.junit.runner.JUnitCore com.scheduling.SJFSchedulerTest
+java -cp "$build;.\lib\junit-4.13.2.jar;.\lib\hamcrest-core-1.3.jar" org.junit.runner.JUnitCore com.scheduling.ACSSchedulerTest
 java -cp $build com.scheduling.simulation.Main
+java -cp $build com.scheduling.gui.App
 ```
 
 ## What is implemented
@@ -90,9 +103,9 @@ java -cp $build com.scheduling.simulation.Main
 - **Context-switch overhead on preemption**: the existing SJF convention charges the configured context-switch ticks when an unfinished running process is preempted. The scheduler chooses the shortest ready process again after the switch, including arrivals during that interval.
 - **Execution timeline**: one entry per simulated tick, showing the running process and its remaining burst, or an idle/context-switch tick.
 - **Metrics and report**: per-process finish, turnaround, waiting, and response times, plus average turnaround, waiting, and response times.
-- **Example cases and tests**: `Main` runs three SJF examples and two ACS examples; the test suite covers SJF behavior plus ACS quantum demotion, non-preemptive Tier 2 execution, and aging.
+- **Example cases and tests**: `Main` runs three SJF examples and two ACS examples. The 11 JUnit tests cover SJF behavior, ACS quantum demotion, non-preemptive Tier 2 execution, aging, and exact per-process metrics for both PDF test cases.
 
-The SJF examples are not the assignment's ACS test-case output. The detailed queue/matrix examples in the PDF describe ACS.
+`Main` prints the two ACS test cases from the PDF; the SJF examples are separate inputs that exercise the SRTF rule.
 
 ## ACS implementation
 
